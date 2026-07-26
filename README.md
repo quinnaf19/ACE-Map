@@ -54,3 +54,24 @@ https://www.nyc.gov/content/planning/pages/resources/datasets/neighborhood-tabul
 
 This is a descriptive visualization. It does not estimate ACE's causal effects
 or the underlying prevalence of bus-lane obstruction.
+
+## Deploy with Cloudflare Workers Builds
+
+This project produces a Cloudflare Worker plus static assets. Connect it under
+**Workers & Pages → Create → Import a repository**, and choose a **Worker**
+deployment rather than a static Pages deployment.
+
+Use these build settings:
+
+- Production branch: `main`
+- Root directory: `/`
+- Build command: `npm run build`
+- Deploy command: `npx wrangler deploy`
+- Node version: `22.16.0` (also pinned in `.node-version`)
+
+Do not enter a Pages output directory such as `.next`, `out`, or `dist/client`.
+The Vinext build creates `.wrangler/deploy/config.json`, which directs Wrangler
+to the generated Worker and its static assets.
+
+If the repository is nested inside another repository, set Cloudflare's root
+directory to the folder that directly contains this `package.json`.
