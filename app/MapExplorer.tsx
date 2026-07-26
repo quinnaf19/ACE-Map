@@ -196,6 +196,7 @@ export default function MapExplorer() {
             <span className="eyebrow">NYC AUTOMATED CAMERA ENFORCEMENT</span>
             <h1>Manhattan Violation Explorer</h1>
           </div>
+        </header>
         </main>
       );
   }
@@ -301,3 +302,55 @@ export default function MapExplorer() {
             ))}
           </div>
           <p className="method">
+            Circles aggregate issued violations at standardized stops. Size and
+            color represent violation counts. Neighborhoods use NYC DCP 2020
+            NTAs; click a boundary to filter.
+          </p>
+        </aside>
+        <div className="map-wrap">
+          <div
+            ref={mapNode}
+            className="map"
+            aria-label="Interactive map of Manhattan ACE issued violations"
+          />
+          {loading && (
+            <div className="loading">Preparing 765,297 issued violations…</div>
+          )}
+          <div className="legend">
+            <span>FEWER</span>
+            <i></i>
+            <i></i>
+            <i></i>
+            <i></i>
+            <span>MORE</span>
+          </div>
+          {selected && (
+            <article className="detail">
+              <button aria-label="Close details" onClick={() => setSelected(null)}>
+                ×
+              </button>
+              <span className="detail-label">SELECTED STOP</span>
+              <h3>{selected.stop}</h3>
+              <p>{selected.nta}</p>
+              <div className="route-pills">
+                {selected.routes.map((route) => (
+                  <span key={route}>{route}</span>
+                ))}
+              </div>
+              <dl className="issued-only">
+                <div>
+                  <dt>Issued violations</dt>
+                  <dd>{fmt.format(selected.violations)}</dd>
+                </div>
+                <div>
+                  <dt>Routes at location</dt>
+                  <dd>{selected.routes.length}</dd>
+                </div>
+              </dl>
+            </article>
+          )}
+        </div>
+      </section>
+    </main>
+  );
+}
