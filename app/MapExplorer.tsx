@@ -98,11 +98,15 @@ export default function MapExplorer() {
           (!q || r.stop.toLowerCase().includes(q))
       )
       .forEach((r) => {
-        const key = `${r.stop}|${r.nta}`;
+        // Canonical intersection totals combine route and NTA variants that
+        // share the same standardized stop name. Filters are applied first,
+        // so selecting a route or neighborhood still recalculates the subset.
+        const key = r.stop;
         const x = m.get(key);
         if (x) {
           x.violations += r.violations;
           if (!x.routes.includes(r.route)) x.routes.push(r.route);
+          if (x.nta !== r.nta) x.nta = "Multiple neighborhoods";
         } else m.set(key, { ...r, routes: [r.route] });
       });
     return [...m.values()].filter((x) => x.violations >= min).sort((a, b) => b.violations - a.violations);
@@ -291,7 +295,7 @@ export default function MapExplorer() {
               <small>Issued violations</small>
             </div>
             {points.slice(0, 8).map((p, i) => (
-              <button key={`${p.stop}-${p.nta}`} onClick={() => focus(p)}>
+              <button key={p.stop} onClick={() => focus(p)}>
                 <span className="rank">{String(i + 1).padStart(2, "0")}</span>
                 <span className="place">
                   <strong>{p.stop}</strong>
@@ -302,9 +306,10 @@ export default function MapExplorer() {
             ))}
           </div>
           <p className="method">
-            Circles aggregate issued violations at standardized stops. Size and
-            color represent violation counts. Neighborhoods use NYC DCP 2020
-            NTAs; click a boundary to filter.
+            Circles aggregate issued violations at canonical intersections
+            across routes and nearby source-coordinate variants. Route and
+            neighborhood filters recalculate the visible totals. Neighborhoods
+            use NYC DCP 2020 NTAs; click a boundary to filter.
           </p>
         </aside>
         <div className="map-wrap">

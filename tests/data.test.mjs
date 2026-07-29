@@ -9,6 +9,22 @@ test("map data contains the reconciled issued-violation total", async () => {
   assert.ok(rows.every(row=>row.route&&row.stop&&row.nta&&Number.isFinite(row.latitude)&&Number.isFinite(row.longitude)));
 });
 
+test("canonical intersection totals match the online report", async () => {
+  const rows=JSON.parse(await readFile(new URL("../public/data/stops.json",import.meta.url),"utf8"));
+  const totals=new Map();
+  for (const row of rows) totals.set(row.stop,(totals.get(row.stop)??0)+row.violations);
+  const expected={
+    "MALCOLM X BLVD / W 125 ST":24144,
+    "SAINT NICHOLAS AV / W 125 ST":17012,
+    "CATHERINE ST / MADISON ST":13112,
+    "2 AV / E 78 ST":10490,
+    "2 AV / E 125 ST":10254,
+    "BROADWAY / W 178 ST":10238,
+    "AMSTERDAM AV / W 161 ST":10215,
+  };
+  for (const [stop,total] of Object.entries(expected)) assert.equal(totals.get(stop),total,stop);
+});
+
 test("Manhattan NTA boundaries are available", async () => {
   const geo=JSON.parse(await readFile(new URL("../public/data/manhattan-ntas.geojson",import.meta.url),"utf8"));
   assert.equal(geo.type,"FeatureCollection");
