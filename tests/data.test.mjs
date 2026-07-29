@@ -25,6 +25,16 @@ test("canonical intersection totals match the online report", async () => {
   for (const [stop,total] of Object.entries(expected)) assert.equal(totals.get(stop),total,stop);
 });
 
+test("rows sharing a canonical intersection use one canonical coordinate", async () => {
+  const rows=JSON.parse(await readFile(new URL("../public/data/stops.json",import.meta.url),"utf8"));
+  const coordinates=new Map();
+  for (const row of rows) {
+    const coordinate=`${row.longitude},${row.latitude}`;
+    if (!coordinates.has(row.stop)) coordinates.set(row.stop,coordinate);
+    assert.equal(coordinate,coordinates.get(row.stop),row.stop);
+  }
+});
+
 test("Manhattan NTA boundaries are available", async () => {
   const geo=JSON.parse(await readFile(new URL("../public/data/manhattan-ntas.geojson",import.meta.url),"utf8"));
   assert.equal(geo.type,"FeatureCollection");

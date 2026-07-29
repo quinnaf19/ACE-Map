@@ -41,7 +41,15 @@ internet connection is needed while viewing the map.
 The source analysis retained only coordinate-confirmed Manhattan records and
 excluded records dated before the supplied route implementation date. Stop
 labels standardize punctuation, common street suffixes, and reversed
-intersection order.
+intersection order. The interface combines route/NTA rows sharing a canonical
+stop label into one marker before filters are applied. Marker coordinates use
+the canonical medians in the analytical `stop_summary.csv`.
+
+After regenerating `stops.json`, reconcile its marker coordinates with:
+
+```bash
+npm run data:reconcile
+```
 
 Neighborhood source: NYC Department of City Planning 2020 NTAs.
 https://www.nyc.gov/content/planning/pages/resources/datasets/neighborhood-tabulation
