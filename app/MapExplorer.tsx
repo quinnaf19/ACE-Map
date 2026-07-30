@@ -7,11 +7,26 @@ type StopRow = {
   route: string;
   stop: string;
   nta: string;
+  records: number;
   violations: number;
+  nonissued: number;
+  exemptions: number;
+  technical: number;
+  dmv: number;
   longitude: number;
   latitude: number;
 };
 type MapPoint = StopRow & { routes: string[] };
+type MetricKey = "records" | "violations" | "nonissued" | "exemptions" | "technical" | "dmv";
+
+const outcomes: { value: MetricKey; label: string; shortLabel: string }[] = [
+  { value: "records", label: "All ACE records", shortLabel: "ACE records" },
+  { value: "violations", label: "Issued violations", shortLabel: "Issued violations" },
+  { value: "nonissued", label: "All non-issued records", shortLabel: "Non-issued records" },
+  { value: "exemptions", label: "Exempt records", shortLabel: "Exempt records" },
+  { value: "technical", label: "Technical rejections", shortLabel: "Technical rejections" },
+  { value: "dmv", label: "DMV rejections", shortLabel: "DMV rejections" },
+];
 
 const fmt = new Intl.NumberFormat("en-US");
 
@@ -22,6 +37,7 @@ export default function MapExplorer() {
   const [geo, setGeo] = useState<any>(null);
   const [route, setRoute] = useState("All routes");
   const [nta, setNta] = useState("All neighborhoods");
+  const [outcome, setOutcome] = useState<MetricKey>("records");
   const [query, setQuery] = useState("");
   const [min, setMin] = useState(1);
   const [selected, setSelected] = useState<MapPoint | null>(null);
@@ -86,6 +102,7 @@ export default function MapExplorer() {
   );
 
   const stopNames = useMemo(() => Array.from(new Set(rows.map((r) => r.stop))).sort(), [rows]);
+  const outcomeLabel = outcomes.find((item) => item.value === outcome)?.shortLabel ?? "ACE records";
 
   const points = useMemo(() => {
     const m = new Map<string, MapPoint>();
@@ -104,15 +121,20 @@ export default function MapExplorer() {
         const key = r.stop;
         const x = m.get(key);
         if (x) {
+          x.records += r.records;
           x.violations += r.violations;
+          x.nonissued += r.nonissued;
+          x.exemptions += r.exemptions;
+          x.technical += r.technical;
+          x.dmv += r.dmv;
           if (!x.routes.includes(r.route)) x.routes.push(r.route);
           if (x.nta !== r.nta) x.nta = "Multiple neighborhoods";
         } else m.set(key, { ...r, routes: [r.route] });
       });
-    return [...m.values()].filter((x) => x.violations >= min).sort((a, b) => b.violations - a.violations);
-  }, [rows, route, nta, query, min]);
+    return [...m.values()].filter((x) => x[outcome] >= min).sort((a, b) => b[outcome] - a[outcome]);
+  }, [rows, route, nta, query, min, outcome]);
 
-  const total = useMemo(() => points.reduce((sum, x) => sum + x.violations, 0), [points]);
+  const total = useMemo(() => points.reduce((sum, x) => sum + x[outcome], 0), [points, outcome]);
 
   useEffect(() => {
     if (!mapNode.current || mapRef.current || !leaflet) return;
@@ -159,9 +181,9 @@ export default function MapExplorer() {
     const layer = pointsLayer.current;
     if (!layer || !leaflet) return;
     layer.clearLayers();
-    const max = Math.max(1, ...points.map((x) => x.violations));
+    const max = Math.max(1, ...points.map((x) => x[outcome]));
     for (const p of points) {
-      const t = Math.sqrt(p.violations / max);
+      const t = Math.sqrt(p[outcome] / max);
       const marker = leaflet.circleMarker([p.latitude,p.longitude], {
         radius: 4 + t * 18,
         weight: 1,
@@ -169,13 +191,13 @@ export default function MapExplorer() {
         fillColor: `hsl(${22 - 18 * t} 86% ${58 - 16 * t}%)`,
         fillOpacity: 0.38 + t * 0.48,
       });
-      marker.bindTooltip(`<b>${p.stop}</b><br>${p.nta}<br>Issued violations: ${fmt.format(p.violations)}`, {
+      marker.bindTooltip(`<b>${p.stop}</b><br>${p.nta}<br>${outcomeLabel}: ${fmt.format(p[outcome])}`, {
         direction: "top",
       });
       marker.on("click", () => setSelected(p));
       marker.addTo(layer);
     }
-  }, [points, leaflet]);
+  }, [points, leaflet, outcome, outcomeLabel]);
 
   const focus = (p: MapPoint) => {
     setSelected(p);
@@ -185,6 +207,7 @@ export default function MapExplorer() {
   const reset = () => {
     setRoute("All routes");
     setNta("All neighborhoods");
+    setOutcome("records");
     setQuery("");
     setMin(1);
     setSelected(null);
@@ -198,7 +221,7 @@ export default function MapExplorer() {
         <header className="topbar">
           <div>
             <span className="eyebrow">NYC AUTOMATED CAMERA ENFORCEMENT</span>
-            <h1>Manhattan Violation Explorer</h1>
+            <h1>Manhattan ACE Record Explorer</h1>
           </div>
         </header>
         </main>
@@ -210,10 +233,10 @@ export default function MapExplorer() {
       <header className="topbar">
         <div>
           <span className="eyebrow">NYC AUTOMATED CAMERA ENFORCEMENT</span>
-          <h1>Manhattan Violation Explorer</h1>
+          <h1>Manhattan ACE Record Explorer</h1>
         </div>
         <div className="period">
-          <span>Issued violations · study period</span>
+          <span>All recorded ACE events · study period</span>
           <strong>Jun 20, 2024 — Jun 15, 2026</strong>
         </div>
       </header>
@@ -245,6 +268,14 @@ export default function MapExplorer() {
                 ))}
               </select>
             </label>
+            <label>
+              Record outcome
+              <select value={outcome} onChange={(e) => { setOutcome(e.target.value as MetricKey); setMin(1); }}>
+                {outcomes.map((item) => (
+                  <option key={item.value} value={item.value}>{item.label}</option>
+                ))}
+              </select>
+            </label>
           </div>
           <label>
             Stop or intersection
@@ -264,7 +295,7 @@ export default function MapExplorer() {
             </div>
           </label>
           <label className="range-label">
-            <span>Minimum issued violations</span>
+            <span>Minimum {outcomeLabel.toLowerCase()}</span>
             <strong>{fmt.format(min)}</strong>
             <input
               type="range"
@@ -277,7 +308,7 @@ export default function MapExplorer() {
           </label>
           <div className="kpis">
             <div>
-              <span>Mapped violations</span>
+              <span>Mapped {outcomeLabel.toLowerCase()}</span>
               <strong>{fmt.format(total)}</strong>
             </div>
             <div>
@@ -292,7 +323,7 @@ export default function MapExplorer() {
           <div className="hotspots">
             <div className="list-title">
               <span>TOP VISIBLE HOTSPOTS</span>
-              <small>Issued violations</small>
+              <small>{outcomeLabel}</small>
             </div>
             {points.slice(0, 8).map((p, i) => (
               <button key={p.stop} onClick={() => focus(p)}>
@@ -301,13 +332,13 @@ export default function MapExplorer() {
                   <strong>{p.stop}</strong>
                   <small>{p.nta}</small>
                 </span>
-                <b>{fmt.format(p.violations)}</b>
+                <b>{fmt.format(p[outcome])}</b>
               </button>
             ))}
           </div>
           <p className="method">
-            Circles aggregate issued violations at canonical intersections
-            across routes and nearby source-coordinate variants. Route and
+            Circles aggregate ACE records at canonical intersections across
+            routes and source-coordinate variants. Outcome, route, and
             neighborhood filters recalculate the visible totals. Neighborhoods
             use NYC DCP 2020 NTAs; click a boundary to filter.
           </p>
@@ -316,10 +347,10 @@ export default function MapExplorer() {
           <div
             ref={mapNode}
             className="map"
-            aria-label="Interactive map of Manhattan ACE issued violations"
+            aria-label="Interactive map of Manhattan ACE records"
           />
           {loading && (
-            <div className="loading">Preparing 765,297 issued violations…</div>
+            <div className="loading">Preparing 1,566,130 ACE records…</div>
           )}
           <div className="legend">
             <span>FEWER</span>
@@ -343,9 +374,23 @@ export default function MapExplorer() {
                 ))}
               </div>
               <dl className="issued-only">
+                {outcome !== "records" && (
+                  <div>
+                    <dt>{outcomeLabel}</dt>
+                    <dd>{fmt.format(selected[outcome])}</dd>
+                  </div>
+                )}
                 <div>
-                  <dt>Issued violations</dt>
+                  <dt>All ACE records</dt>
+                  <dd>{fmt.format(selected.records)}</dd>
+                </div>
+                <div>
+                  <dt>Issued</dt>
                   <dd>{fmt.format(selected.violations)}</dd>
+                </div>
+                <div>
+                  <dt>Non-issued</dt>
+                  <dd>{fmt.format(selected.nonissued)}</dd>
                 </div>
                 <div>
                   <dt>Routes at location</dt>

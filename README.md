@@ -1,12 +1,12 @@
 # Manhattan ACE Violation Explorer
 
-An interactive Leaflet map of **765,297 issued NYC Automated Camera Enforcement
-(ACE) violations in Manhattan**, covering June 20, 2024 through June 15, 2026.
+An interactive Leaflet map of **1,566,130 NYC Automated Camera Enforcement
+(ACE) records in Manhattan**, covering June 20, 2024 through June 15, 2026.
 
 The application maps aggregated stop/intersection totals rather than rendering
-hundreds of thousands of overlapping individual markers. The issued-violation
-totals remain exact and can be filtered by bus route, standardized stop name,
-and NYC Department of City Planning 2020 Neighborhood Tabulation Area (NTA).
+hundreds of thousands of overlapping individual markers. Totals remain exact
+and can be filtered by final outcome, bus route, standardized stop name, and
+NYC Department of City Planning 2020 Neighborhood Tabulation Area (NTA).
 
 ## Run in VS Code
 
@@ -34,8 +34,9 @@ internet connection is needed while viewing the map.
 
 ## Data files
 
-- `public/data/stops.json`: issued violations aggregated by route,
-  standardized stop/intersection, and NTA.
+- `public/data/stops.json`: all ACE records and issued, exempt, technical,
+  DMV, and combined non-issued outcomes aggregated by route, standardized
+  stop/intersection, and NTA.
 - `public/data/manhattan-ntas.geojson`: Manhattan 2020 NTA boundaries.
 
 The source analysis retained only coordinate-confirmed Manhattan records and
@@ -45,10 +46,10 @@ intersection order. The interface combines route/NTA rows sharing a canonical
 stop label into one marker before filters are applied. Marker coordinates use
 the canonical medians in the analytical `stop_summary.csv`.
 
-After regenerating `stops.json`, reconcile its marker coordinates with:
+Regenerate `stops.json` from the cleaned analytical CSV with:
 
 ```bash
-npm run data:reconcile
+npm run data:build
 ```
 
 Neighborhood source: NYC Department of City Planning 2020 NTAs.
