@@ -35,6 +35,7 @@ export default function MapExplorer() {
   const [isMounted, setIsMounted] = useState(false);
   const [rows, setRows] = useState<StopRow[]>([]);
   const [geo, setGeo] = useState<any>(null);
+  const [routeGeo, setRouteGeo] = useState<any>(null);
   const [route, setRoute] = useState("All routes");
   const [nta, setNta] = useState("All neighborhoods");
   const [outcome, setOutcome] = useState<MetricKey>("records");
@@ -49,6 +50,7 @@ export default function MapExplorer() {
   const mapRef = useRef<Leaflet.Map | null>(null);
   const pointsLayer = useRef<Leaflet.LayerGroup | null>(null);
   const ntaLayer = useRef<Leaflet.GeoJSON | null>(null);
+  const routeLayer = useRef<Leaflet.GeoJSON | null>(null);
 
   // 1. Only allow the component to interact with data/window once mounted on client side
   useEffect(() => {
@@ -67,10 +69,15 @@ export default function MapExplorer() {
         if (!r.ok) throw new Error("Neighborhood data request failed");
         return r.json();
       }),
+      fetch("/data/route-shapes.geojson").then((r) => {
+        if (!r.ok) throw new Error("Route geometry request failed");
+        return r.json();
+      }),
     ])
-      .then(([s, g]) => {
+      .then(([s, g, routeShapes]) => {
         setRows(s);
         setGeo(g);
+        setRouteGeo(routeShapes);
         setLoading(false);
       })
       .catch(() => {
@@ -141,6 +148,9 @@ export default function MapExplorer() {
     const map = leaflet
       .map(mapNode.current, { zoomControl: false, minZoom: 10, maxZoom: 19 })
       .setView([40.783, -73.971], 12);
+    map.createPane("routes");
+    const routePane = map.getPane("routes");
+    if (routePane) routePane.style.zIndex = "350";
     leaflet.control.zoom({ position: "bottomright" }).addTo(map);
     leaflet
       .tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
@@ -176,6 +186,38 @@ export default function MapExplorer() {
       .addTo(mapRef.current);
     ntaLayer.current.bringToBack();
   }, [geo, nta, leaflet]);
+
+  useEffect(() => {
+    if (!mapRef.current || !routeGeo || !leaflet) return;
+    if (routeLayer.current) routeLayer.current.remove();
+    routeLayer.current = null;
+    if (route === "All routes") return;
+
+    routeLayer.current = leaflet
+      .geoJSON(routeGeo, {
+        filter: (feature: any) => feature?.properties?.route === route,
+        pane: "routes",
+        style: {
+          color: "#111827",
+          weight: 4,
+          opacity: 0.86,
+          lineCap: "round",
+          lineJoin: "round",
+        },
+        onEachFeature: (_feature, layer) => {
+          layer.bindTooltip(`${route} bus route`, {
+            sticky: true,
+            className: "route-tip",
+          });
+        },
+      })
+      .addTo(mapRef.current);
+
+    const bounds = routeLayer.current.getBounds();
+    if (bounds.isValid()) {
+      mapRef.current.fitBounds(bounds, { padding: [28, 28], maxZoom: 14 });
+    }
+  }, [route, routeGeo, leaflet]);
 
   useEffect(() => {
     const layer = pointsLayer.current;
@@ -360,6 +402,12 @@ export default function MapExplorer() {
             <i></i>
             <span>MORE</span>
           </div>
+          {route !== "All routes" && (
+            <div className="route-key">
+              <i></i>
+              <span>{route} route</span>
+            </div>
+          )}
           {selected && (
             <article className="detail">
               <button aria-label="Close details" onClick={() => setSelected(null)}>

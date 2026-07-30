@@ -60,3 +60,21 @@ test("interface offers all requested outcome filters", async () => {
     "DMV rejections",
   ]) assert.match(source,new RegExp(label));
 });
+
+test("official route geometry covers every ACE route", async () => {
+  const geo=JSON.parse(await readFile(new URL("../public/data/route-shapes.geojson",import.meta.url),"utf8"));
+  const routes=[...new Set(geo.features.map(feature=>feature.properties.route))].sort();
+  assert.deepEqual(routes,[
+    "M100","M101","M116","M14+","M15+","M2","M23+","M31","M34+",
+    "M4","M42","M57","M60+","M7","M79+","M86+","M96",
+  ].sort());
+  assert.ok(geo.features.every(feature=>feature.geometry.type==="MultiLineString"));
+  assert.ok(geo.features.every(feature=>feature.geometry.coordinates.flat().length>1));
+});
+
+test("selecting one route displays its line and route key", async () => {
+  const source=await readFile(new URL("../app/MapExplorer.tsx",import.meta.url),"utf8");
+  assert.match(source,/route-shapes\.geojson/);
+  assert.match(source,/feature\?\.properties\?\.route === route/);
+  assert.match(source,/className="route-key"/);
+});
